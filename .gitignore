@@ -1,0 +1,68 @@
+# Ignore everything by default
+*
+
+# But keep the following files
+!.gitignore
+!bot1.py
+
+# Optional (if you use requirements)
+!requirements.txt
+
+# Ignore system / IDE / environment folders
+.idea/
+.venv/
+__pycache__/
+output/
+ms/
+qp/
+Excel/
+ICT_Excel/
+ICT_JSON/
+Chemistry Past Papers/
+Ict Past Papers/
+Ict Mark schemes/
+Physics Past Papers/
+topics/
+
+# Ignore config & secrets
+token.txt
+discord_token.txt
+password.txt
+settings.json
+leaderboard.json
+database.json
+filtered_markschemes_upto_0121.json
+markschemes.json
+filtered_text.txt
+output.*
+log.txt
+devlog.txt
+main.py
+main1.py
+bot.py
+bot.ts
+action_code_counter.txt
+name.py
+test.py
+test1.py
+temp.py
+utils.py
+
+# Ignore PDFs, Excel, images, etc.
+*.pdf
+*.xlsx
+*.png
+*.jpg
+*.jpeg
+*.aux
+*.log
+*.tex
+
+# Ignore Python cache and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
