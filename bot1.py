@@ -5,6 +5,8 @@ import random
 import asyncio
 import os
 
+from setuptools.config.expand import read_files
+
 # --- Intents ---
 intents = discord.Intents.default()
 intents.message_content = True
@@ -16,6 +18,11 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 # --- Load Database ---
 with open("database.json", "r", encoding="utf-8") as f:
     database = json.load(f)
+
+# === LOAD TOKEN ===
+
+TOKEN = read_files("token.txt")
+
 
 # --- Leaderboard ---
 LEADERBOARD_FILE = "leaderboard.json"
@@ -44,16 +51,23 @@ def save_settings():
 # --- Helper Functions ---
 def pick_random_question():
     paper = random.choice(list(database.keys()))
+    print(f"[DEBUG] Selected paper: {paper}")
+
     qkeys = list(database[paper]["questions"].keys())
-    akeys = list(database[paper]["answers"].keys())
+    print(f"[DEBUG] Available question keys: {qkeys[:5]}... (+{len(qkeys)-5} more)")
 
     qnum = random.choice(qkeys)
-    qpath = database[paper]["questions"][qnum]
+    print(f"[DEBUG] Selected question number: {qnum}")
 
-    # Safe modulus mapping
-    q_index = int(qnum) % len(akeys)
-    akey = akeys[q_index]
+    qpath = database[paper]["questions"][qnum]
+    print(f"[DEBUG] Question path: {qpath}")
+
+    # Directly use question number as answer key
+    akey = qnum
+    print(f"[DEBUG] Corresponding answer key: {akey}")
+
     ans = database[paper]["answers"][akey]["answer"]
+    print(f"[DEBUG] Answer: {ans}")
 
     return paper, qnum, qpath, ans
 
@@ -202,20 +216,47 @@ async def setquizchannel(ctx, channel: discord.TextChannel):
     save_settings()
     await ctx.send(f"✅ Quiz channel set to {channel.mention}")
 
-def check_channel(ctx):
-    guild_id = str(ctx.guild.id)
-    if guild_id in settings:
-        allowed_channel = settings[guild_id]["quiz_channel"]
-        if ctx.channel.id != allowed_channel:
-            raise commands.CheckFailure(f"⚠️ You can only use quiz commands in <#{allowed_channel}>.")
-    else:
-        raise commands.CheckFailure("❌ This server hasn’t set a quiz channel yet. Ask a mod to use `/setquizchannel`.")
 
+# --- Channel Check with detailed debugging ---
+async def check_channel(ctx):
+    try:
+        guild_id = str(ctx.guild.id)
+        await ctx.send(f"Debug: Guild ID = {guild_id}")
+
+        if guild_id not in settings:
+            await ctx.send("Debug: Guild not in settings")
+            raise commands.CheckFailure(
+                "❌ This server hasn’t set a quiz channel yet. Ask a mod to use `/setquizchannel`."
+            )
+
+        allowed_channel = settings[guild_id]["quiz_channel"]
+        await ctx.send(f"Debug: Current channel = {ctx.channel.id}, Allowed channel = {allowed_channel}")
+
+        if ctx.channel.id != allowed_channel:
+            await ctx.send(f"Debug: Wrong channel detected")
+            raise commands.CheckFailure(
+                f"⚠️ You can only use quiz commands in <#{allowed_channel}>."
+            )
+
+        await ctx.send("Debug: Channel check passed ✅")
+        return True
+
+    except Exception as e:
+        await ctx.send(f"Debug: check_channel exception ❌\n{e}")
+        raise
+
+
+# --- Quiz Command with full debugging ---
 @bot.command()
 @commands.check(check_channel)
 async def quiz(ctx):
-    """Start solo quiz mode."""
-    await ask_question(ctx, ctx.author.id)
+    await ctx.send(f"Debug: /quiz command started ✅")
+    try:
+        await ask_question(ctx, ctx.author.id)
+        await ctx.send("Debug: ask_question finished successfully ✅")
+    except Exception as e:
+        await ctx.send(f"Debug: ask_question raised an error ❌\n{e}")
+
 
 @bot.command()
 @commands.check(check_channel)
@@ -223,14 +264,18 @@ async def competitive(ctx):
     """Start competitive mode for everyone."""
     await competitive_mode(ctx)
 
+# --- Updated leaderboard (no ping) ---
 @bot.command()
 async def leaderboard_cmd(ctx):
-    """Show leaderboard."""
+    """Show leaderboard without pinging users."""
     if not leaderboard:
         await ctx.send("No data yet.")
         return
-    msg = "\n".join(f"<@{uid}>: {data['points']} pts | {data['wins']} wins"
-                    for uid, data in leaderboard.items())
+    msg = "\n".join(
+        f"{ctx.guild.get_member(int(uid)).display_name if ctx.guild.get_member(int(uid)) else uid}: "
+        f"{data['points']} pts | {data['wins']} wins"
+        for uid, data in leaderboard.items()
+    )
     await ctx.send(f"🏅 **Leaderboard**:\n{msg}")
 
 # --- Error Handling ---
@@ -242,4 +287,4 @@ async def on_command_error(ctx, error):
         raise error
 
 # --- Run Bot ---
-bot.run("TOKEN")
+bot.run(TOKEN)
